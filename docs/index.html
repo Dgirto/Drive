@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Conector Drive — Ruvic</title>
+  <link rel="stylesheet" href="assets/ruvic.css">
+</head>
+<body class="guide">
+  <main class="ruvic-container">
+
+    <nav class="ruvic-toc" aria-label="Índice">
+      <h2>Contenido</h2>
+      <ol>
+        <li><a href="#que-es">¿Qué es y para qué sirve?</a></li>
+        <li><a href="#prerrequisitos">Prerrequisitos</a></li>
+        <li><a href="#configuracion-fabricante">Configuración en el fabricante</a></li>
+        <li><a href="#permisos">Permisos requeridos</a></li>
+        <li><a href="#configuracion-ruvic">Configuración en Ruvic</a></li>
+        <li><a href="#verificacion">Verificación</a></li>
+        <li><a href="#solucion-problemas">Solución de problemas</a></li>
+        <li><a href="#faq-seguridad">Preguntas frecuentes y notas de seguridad</a></li>
+      </ol>
+    </nav>
+
+    <h1>Drive</h1>
+    <p class="guide-updated">{{ULTIMA_ACTUALIZACION}}</p>
+
+    <!-- ============ 1. QUÉ ES ============ -->
+    <section>
+      <h2 id="que-es">¿Qué es y para qué sirve?</h2>
+
+      <p>El conector Drive permite que el agente de Ruvic liste, lea, descargue y suba archivos en el Google Drive de <strong>uno o varios usuarios</strong> de tu dominio Google Workspace, usando una sola credencial administrada centralizadamente por tu equipo de TI — sin que cada usuario tenga que autorizar su propio Drive por separado. Una vez configurado, puedes pedirle al agente cosas como:</p>
+      <ul>
+        <li>"Busca en el Drive de facturación los archivos que contengan 'factura' en el nombre."</li>
+        <li>"Descarga el último reporte mensual que subió soporte@empresa.com."</li>
+        <li>"Sube este archivo a la carpeta de reportes de cobranzas@empresa.com."</li>
+      </ul>
+      <p>Operaciones soportadas:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Operación</th>
+            <th>Qué hace</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>file.list</code></td>
+            <td>Busca/lista archivos usando filtros (sintaxis de búsqueda de Drive)</td>
+          </tr>
+          <tr>
+            <td><code>file.read</code></td>
+            <td>Lee los metadatos de un archivo (nombre, tipo, dueño, tamaño, etc.)</td>
+          </tr>
+          <tr>
+            <td><code>file.download</code></td>
+            <td>Descarga el contenido de un archivo a disco local</td>
+          </tr>
+          <tr>
+            <td><code>file.upload</code></td>
+            <td>Sube un archivo local al Drive del usuario (máx. 20 MB)</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout callout-warning">
+        <span class="callout-title">Solo para Google Workspace</span>
+        Este conector usa <strong>delegación de dominio</strong>, una función exclusiva de Google Workspace. No funciona con cuentas de Google personales (@gmail.com).
+      </div>
+    </section>
+
+    <!-- ============ 2. PRERREQUISITOS ============ -->
+    <section>
+      <h2 id="prerrequisitos">Prerrequisitos</h2>
+
+      <ul>
+        <li>Una organización con <strong>Google Workspace</strong> (no funciona con cuentas personales @gmail.com).</li>
+        <li>Acceso de <strong>superadministrador de Google Workspace</strong> — es la única persona que puede autorizar la delegación de dominio (paso único, sección 3).</li>
+        <li>Acceso al <strong>Google Cloud Console</strong> del mismo dominio, con permisos para crear un proyecto y una cuenta de servicio.</li>
+        <li>Los correos de los usuarios cuyo Drive va a usar el agente (ej. <code>facturacion@tuempresa.com</code>).</li>
+      </ul>
+
+      <div class="callout callout-info">
+        <span class="callout-title">¿Ya configuraste Gmail Workspace?</span>
+        Puedes reutilizar la misma cuenta de servicio del conector <strong>Gmail (Google Workspace)</strong> en lugar de crear una nueva — solo hay que agregar el scope de Drive a la misma entrada de delegación en el Admin Console.
+      </div>
+    </section>
+
+    <!-- ============ 3. CONFIGURACIÓN EN EL FABRICANTE ============ -->
+    <section>
+      <h2 id="configuracion-fabricante">Configuración en el fabricante</h2>
+
+      <p>Vas a crear una <strong>cuenta de servicio</strong> en Google Cloud y autorizarla mediante <strong>delegación de dominio</strong> para que pueda actuar en nombre de cualquier usuario autorizado. Esto se hace <strong>una sola vez por dominio</strong> — después, agregar un usuario nuevo no requiere repetir estos pasos, solo compartírselo al agente por su correo.</p>
+
+      <ol class="ruvic-steps">
+        <li>
+          <strong>Crea (o selecciona) un proyecto en Google Cloud Console.</strong>
+          <p>Ve a <a href="https://console.cloud.google.com/projectcreate" target="_blank" rel="noopener">console.cloud.google.com/projectcreate</a> y crea un proyecto (o reutiliza uno existente del mismo dominio).</p>
+        </li>
+
+        <li>
+          <strong>Habilita la Google Drive API.</strong>
+          <p>En el menú <em>APIs y servicios → Biblioteca</em>, busca "Google Drive API" y pulsa <em>Habilitar</em>.</p>
+        </li>
+
+        <li>
+          <strong>Crea la cuenta de servicio (o reutiliza la de Gmail Workspace).</strong>
+          <p>En <em>IAM y administración → Cuentas de servicio → Crear cuenta de servicio</em>. Dale un nombre (ej. <code>ruvic-drive</code>) y termina el asistente sin asignar roles adicionales de proyecto.</p>
+        </li>
+
+        <li>
+          <strong>Genera y descarga la clave JSON.</strong>
+          <p>Abre la cuenta de servicio → pestaña <em>Claves</em> → <em>Agregar clave → Crear clave nueva → JSON</em>. Se descargará un archivo <code>.json</code>: guárdalo, lo usarás en el formulario de Ruvic.</p>
+          <div class="screenshot-placeholder">
+            [ Captura: pestaña Claves de la cuenta de servicio con el botón "Agregar clave" — reemplazar por assets/img/drive-sa-key.png ]
+          </div>
+        </li>
+
+        <li>
+          <strong>Anota el ID de cliente único de la cuenta de servicio.</strong>
+          <p>En la pestaña <em>Detalles</em> de la cuenta de servicio, copia el <strong>ID de cliente único</strong> (una cadena numérica larga). Lo necesitarás en el siguiente paso.</p>
+        </li>
+
+        <li>
+          <strong>El superadministrador autoriza la delegación de dominio (paso crítico).</strong>
+          <p>Este paso <strong>solo lo puede hacer el superadministrador</strong> de tu organización de Google Workspace. Ve a <a href="https://admin.google.com/ac/owl/domainwidedelegation" target="_blank" rel="noopener">admin.google.com → Seguridad → Control de acceso a las API → Delegación en todo el dominio</a>. Si el Client ID ya está agregado (ej. por Gmail Workspace), edítalo y agrega el scope de Drive; si no, pulsa <em>Agregar nuevo</em> e ingresa:</p>
+          <ul>
+            <li><strong>ID de cliente:</strong> el ID de cliente único copiado en el paso anterior.</li>
+            <li><strong>Alcances OAuth</strong>:
+<pre><code>https://www.googleapis.com/auth/drive</code></pre>
+            </li>
+          </ul>
+          <p>Guarda. Sin este paso, cualquier intento de conexión falla con el error <code>unauthorized_client</code>.</p>
+          <div class="screenshot-placeholder">
+            [ Captura: pantalla de delegación en todo el dominio con el ID de cliente y los scopes — reemplazar por assets/img/drive-domain-delegation.png ]
+          </div>
+        </li>
+
+        <li>
+          <strong>Define qué usuario usarás para la prueba inicial.</strong>
+          <p>Anota el correo de un usuario del dominio (ej. <code>facturacion@tuempresa.com</code>) para el formulario de Ruvic. Después de configurado, el agente podrá usar <strong>cualquier otro usuario autorizado</strong> del mismo dominio, no solo este.</p>
+        </li>
+      </ol>
+    </section>
+
+    <!-- ============ 4. PERMISOS ============ -->
+    <section>
+      <h2 id="permisos">Permisos requeridos</h2>
+
+      <p>La cuenta de servicio necesita el scope completo de Drive para poder listar, leer, descargar y subir archivos.</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Scope</th>
+            <th>Para qué lo usa el conector</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>drive</code></td>
+            <td>Buscar y listar archivos (<code>file.list</code>), leer metadatos (<code>file.read</code>), descargar (<code>file.download</code>) y subir archivos (<code>file.upload</code>)</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="callout callout-warning">
+        <span class="callout-title">Este scope da acceso completo de lectura y escritura</span>
+        A diferencia de scopes más restringidos como <code>drive.file</code> (solo archivos creados por la app) o <code>drive.readonly</code> (solo lectura), <code>drive</code> permite ver, descargar, modificar y subir <strong>cualquier</strong> archivo al que el usuario impersonado tenga acceso, incluidas unidades compartidas. La delegación aplica a todo el dominio: la cuenta de servicio puede impersonar a cualquier usuario autorizado, incluidos los que se creen en el futuro.
+      </div>
+    </section>
+
+    <!-- ============ 5. CONFIGURACIÓN EN RUVIC ============ -->
+    <section>
+      <h2 id="configuracion-ruvic">Configuración en Ruvic</h2>
+
+      <p>Entra a <strong>Settings → Conectores</strong>, busca la tarjeta <strong>Drive (Google Workspace — cuenta de servicio)</strong> y pulsa <strong>Configurar</strong>. Diligencia el formulario con los valores que obtuviste en la sección anterior:</p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Campo del formulario</th>
+            <th>Valor</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>JSON de la cuenta de servicio</td>
+            <td>Abre el archivo <code>.json</code> descargado en el paso 4 y pega <strong>todo</strong> su contenido</td>
+          </tr>
+          <tr>
+            <td>Usuario de prueba</td>
+            <td>El correo definido en el paso 7 (ej. <code>facturacion@tuempresa.com</code>)</td>
+          </tr>
+          <tr>
+            <td>Timeout de solicitud</td>
+            <td>Opcional; <code>30</code> segundos por defecto</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <p>Guarda y pulsa <span class="ruvic-button">Probar conexión</span> — la plataforma se conectará a Drive API impersonando al usuario de prueba y confirmará que la delegación de dominio funciona.</p>
+
+      <div class="screenshot-placeholder">
+        [ Captura: formulario del conector Drive en Settings → Conectores — reemplazar por assets/img/drive-form.png ]
+      </div>
+    </section>
+
+    <!-- ============ 6. VERIFICACIÓN ============ -->
+    <section>
+      <h2 id="verificacion">Verificación</h2>
+
+      <ol class="ruvic-steps">
+        <li>
+          <strong>Test de conexión exitoso.</strong>
+          <p>El botón <em>Probar conexión</em> debe responder: <em>"Conexión exitosa al Drive de facturacion@tuempresa.com (delegación de dominio)"</em>. La tarjeta del conector cambia a estado <strong>Configurado</strong>.</p>
+        </li>
+        <li>
+          <strong>Automatización mínima de prueba, incluido un segundo usuario.</strong>
+          <p>Abre una conversación nueva con el agente y pídele:</p>
+          <blockquote><em>"Lista los últimos 5 archivos del Drive de facturacion@tuempresa.com."</em></blockquote>
+          <p>Luego prueba con otro usuario del dominio distinto al de la prueba inicial (ej. <code>soporte@tuempresa.com</code>) — si el agente responde con datos reales de ambos sin pedir nueva configuración, la delegación de dominio quedó operativa de punta a punta.</p>
+        </li>
+      </ol>
+    </section>
+
+    <!-- ============ 7. SOLUCIÓN DE PROBLEMAS ============ -->
+    <section>
+      <h2 id="solucion-problemas">Solución de problemas</h2>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Mensaje / síntoma</th>
+            <th>Causa probable y solución</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>"unauthorized_client" al probar la conexión</td>
+            <td>El error más común. El conector te dirá exactamente qué revisar: 1) que el Client ID esté agregado en el Admin Console (paso 6 de la sección anterior), 2) que el scope incluya exactamente <code>https://www.googleapis.com/auth/drive</code>, 3) que el usuario de prueba pertenezca al mismo dominio Workspace. Solo el superadministrador puede corregir el punto 1.</td>
+          </tr>
+          <tr>
+            <td>"…no contiene un JSON válido"</td>
+            <td>Se pegó un fragmento del archivo o se modificó el contenido. Vuelve a abrir el <code>.json</code> descargado y pega todo su contenido, sin editarlo.</td>
+          </tr>
+          <tr>
+            <td>Funciona con el usuario de prueba pero falla con otro usuario del dominio</td>
+            <td>Verifica que ese otro usuario exista y esté activo en el mismo dominio Workspace — la delegación cubre todo el dominio automáticamente, pero un correo mal escrito o de otro dominio siempre fallará.</td>
+          </tr>
+          <tr>
+            <td>"Drive API no respondió correctamente (HTTP 429)"</td>
+            <td>Límite de cuota temporal de la API. Es transitorio; el agente puede reintentar en unos segundos.</td>
+          </tr>
+          <tr>
+            <td>El conector aparece "Sin configurar" tras guardar</td>
+            <td>Algún campo obligatorio quedó vacío. Ábrelo de nuevo y completa el JSON de la cuenta de servicio y el usuario de prueba.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- ============ 8. FAQ Y SEGURIDAD ============ -->
+    <section>
+      <h2 id="faq-seguridad">Preguntas frecuentes y notas de seguridad</h2>
+
+      <h3>¿Qué tan sensible es el JSON de la cuenta de servicio?</h3>
+      <p><strong>Es la credencial de mayor cuidado de este conector.</strong> El scope <code>drive</code> da acceso completo de lectura y escritura a cualquier archivo al que el usuario impersonado tenga acceso — no solo a los archivos creados por el conector. Trátala con el mismo cuidado que la contraseña de un administrador — nunca la compartas por chat, correo o capturas de pantalla.</p>
+
+      <h3>¿Puedo usar la misma cuenta de servicio que Gmail Workspace?</h3>
+      <p>Sí. Una cuenta de servicio puede tener varios scopes autorizados a la vez en la misma entrada de delegación del Admin Console. Solo agrega <code>https://www.googleapis.com/auth/drive</code> a la lista de scopes existente, separado por coma, sin espacios extra.</p>
+
+      <h3>¿El agente puede eliminar o sobrescribir archivos?</h3>
+      <p>El conector solo expone las operaciones <code>file.list</code>, <code>file.read</code>, <code>file.download</code> y <code>file.upload</code> — no expone eliminación ni sobrescritura. El scope subyacente sí lo permitiría técnicamente, pero el código generado no incluye esas operaciones a menos que se pidan explícitamente y se extienda el conector.</p>
+
+      <h3>Rotación de credenciales</h3>
+      <p>Recomendado cada 90 días o según tu política: genera una nueva clave JSON en Google Cloud Console (la cuenta de servicio puede tener varias claves activas a la vez), actualízala en el formulario del conector, prueba la conexión, y luego elimina la clave anterior. La delegación de dominio no cambia — sigue asociada al mismo Client ID.</p>
+
+      <h3>¿Qué hago si el JSON se compromete?</h3>
+      <ol>
+        <li>El superadministrador elimina o edita la entrada de delegación en el Admin Console (Seguridad → Delegación en todo el dominio) — esto revoca el acceso de inmediato.</li>
+        <li>Elimina la clave comprometida en Google Cloud Console (IAM y administración → Cuentas de servicio → Claves).</li>
+        <li>Genera una nueva clave, vuelve a autorizar la delegación con el mismo Client ID, y actualiza el formulario del conector.</li>
+      </ol>
+
+      <div class="callout callout-warning">
+        <span class="callout-title">Buenas prácticas</span>
+        Usa una cuenta de servicio dedicada (o compartida solo con Gmail Workspace); nunca compartas el JSON por canales no seguros; y revisa periódicamente en el Admin Console qué Client IDs tienen delegación de dominio activa en tu organización y con qué scopes.
+      </div>
+    </section>
+
+  </main>
+</body>
+</html>
