@@ -1,10 +1,14 @@
 {
   "id": "drive",
   "name": "Drive (Google Workspace — cuenta de servicio)",
+  "name_en": "Drive (Google Workspace — service account)",
   "version": "1.0.0",
   "description": "Listar, leer, descargar y subir archivos en el Google Drive de usuarios de un dominio Google Workspace mediante una cuenta de servicio con delegación de dominio",
+  "description_en": "List, read, download and upload files in the Google Drive of users in a Google Workspace domain using a service account with domain-wide delegation",
   "icon": "icon.svg",
   "category": "storage",
+  "category_en": "storage",
+  "keywords": ["drive", "google drive", "archivo", "archivos", "documento", "workspace", "google", "domain-wide delegation", "delegación de dominio", "cuenta de servicio", "service account"],
   "library": {
     "package": "ruvic-drive-connector",
     "install": "pip install git+https://github.com/Dgirto/Drive.git#subdirectory=lib",
